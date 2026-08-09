@@ -66,6 +66,9 @@ main{max-width:1080px; margin:20px auto; padding:0 16px; display:flex; flex-dire
 /* --- 健保項目清單 --- */
 .item-groups{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px;}
 .group h3{font-size:13px; color:var(--sub); margin:0 0 8px; border-left:3px solid var(--blue); padding-left:8px;}
+.summary-subhead{font-size:13px; color:var(--sub); margin:14px 0 8px; border-left:3px solid var(--blue); padding-left:8px;}
+.summary-subhead:first-child{margin-top:0;}
+.summary-item-name{font-weight:700;}
 .item-row{border:1px solid var(--line); border-radius:10px; margin-bottom:6px; overflow:hidden; background:var(--bg);}
 .item-head{display:flex; align-items:flex-start; gap:8px; padding:8px 10px; cursor:pointer;}
 .item-head input[type=checkbox]{margin-top:3px; width:16px; height:16px; flex-shrink:0;}
@@ -197,6 +200,8 @@ footer{text-align:center; color:var(--sub); font-size:12px; padding:20px;}
   <!-- 4. 摘要 -->
   <section class="card">
     <h2><span class="n">4</span>批價醫囑摘要</h2>
+    <div class="small" style="margin-bottom:8px;">下面每一筆都能直接編輯／刪除，不用回去上面找。</div>
+    <div id="summaryEditList" style="margin-bottom:16px;"></div>
     <div id="summaryBox">尚無資料</div>
     <div class="row-actions">
       <button class="btn primary" onclick="refreshSummary()">重新產生摘要</button>
@@ -734,6 +739,77 @@ function refreshSummary(){
   }
 
   document.getElementById('summaryBox').textContent = lines.join('\n');
+  renderSummaryEditList();
+}
+
+/* ---------------- 摘要區：可直接編輯／刪除的清單 ---------------- */
+function renderSummaryEditList(){
+  const el = document.getElementById('summaryEditList');
+  if(!el) return;
+
+  const itemBlocks = [];
+  ITEMS.forEach(group=>{
+    group.items.forEach(it=>{
+      const sel = state.selected[it.code];
+      if(!sel || !sel.checked) return;
+
+      let sub = '';
+      if(it.type==='resin' || it.type==='canal' || it.type==='toothlist'){
+        sub = sel.confirmed.length
+          ? sel.confirmed.map((entry,idx)=>`
+              <div class="confirmed-row" style="margin-left:16px;">
+                <span class="txt">${entrySummaryText(it, entry)}</span>
+                <span class="ops">
+                  <button type="button" class="edit" onclick="editFromSummary('${it.code}',${idx})">編輯</button>
+                  <button type="button" class="del" onclick="deleteConfirmedEntry('${it.code}',${idx})">刪除</button>
+                </span>
+              </div>
+            `).join('')
+          : '<div class="confirmed-empty" style="margin-left:16px;">尚未確認任何牙位</div>';
+      }
+
+      itemBlocks.push(`
+        <div class="confirmed-row">
+          <span class="txt"><span class="summary-item-name">${it.code}</span> ${it.name}</span>
+          <span class="ops">
+            <button type="button" class="del" onclick="removeWholeItem('${it.code}')">移除項目</button>
+          </span>
+        </div>
+        ${sub}
+      `);
+    });
+  });
+
+  const rxBlocks = state.rx.map((r,idx)=>`
+    <div class="confirmed-row">
+      <span class="txt">${r.name||'（未填藥名）'}　${r.dose||''}　${r.freq}　×${r.days||'?'}天</span>
+      <span class="ops">
+        <button type="button" class="edit" onclick="editRxFromSummary(${idx})">編輯</button>
+        <button type="button" class="del" onclick="deleteRxEntry(${idx})">刪除</button>
+      </span>
+    </div>
+  `);
+
+  el.innerHTML =
+    '<div class="summary-subhead">健保申請項目</div>' +
+    (itemBlocks.length ? itemBlocks.join('') : '<div class="confirmed-empty">尚未勾選任何項目</div>') +
+    '<div class="summary-subhead">開藥醫囑</div>' +
+    (rxBlocks.length ? rxBlocks.join('') : '<div class="confirmed-empty">未開立藥品</div>');
+}
+
+function editFromSummary(code, idx){
+  editConfirmedEntry(code, idx);
+  const target = document.getElementById('detail-'+code);
+  if(target) target.scrollIntoView({behavior:'smooth', block:'center'});
+}
+function editRxFromSummary(idx){
+  editRxEntry(idx);
+  document.getElementById('rxStagingArea').scrollIntoView({behavior:'smooth', block:'center'});
+}
+function removeWholeItem(code){
+  if(state.selected[code] && state.selected[code].checked){
+    toggleItem(code);
+  }
 }
 
 function buildAllergyText(){
