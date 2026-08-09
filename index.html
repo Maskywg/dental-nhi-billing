@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>牙科健保批價醫囑系統（原型）</title>
+<style>
+:root{
+  --bg:#f4f6f8; --panel:#ffffff; --ink:#1c2530; --sub:#5b6b7c; --line:#dde3ea;
+  --blue:#2563eb; --blue-bg:#eaf1ff; --green:#16a34a; --green-bg:#e8f7ee;
+  --amber:#d97706; --amber-bg:#fff4e0; --red:#dc2626; --red-bg:#fdecec;
+  --chip:#eef1f5;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f1418; --panel:#171e26; --ink:#e6edf3; --sub:#93a3b5; --line:#2a3541;
+    --blue:#5b8def; --blue-bg:#1b2a44; --green:#3ecf76; --green-bg:#173327;
+    --amber:#e0a13a; --amber-bg:#3a2c11; --red:#f3706c; --red-bg:#3a1b1b;
+    --chip:#222c37;
+  }
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft JhengHei",sans-serif;
+  background:var(--bg); color:var(--ink); line-height:1.5; padding-bottom:80px;
+}
+header{
+  background:var(--panel); border-bottom:1px solid var(--line);
+  padding:16px 20px; position:sticky; top:0; z-index:20;
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
+}
+header h1{font-size:18px; margin:0;}
+header .tag{font-size:12px; color:var(--sub); background:var(--chip); padding:3px 10px; border-radius:20px;}
+main{max-width:1080px; margin:20px auto; padding:0 16px; display:flex; flex-direction:column; gap:16px;}
+.card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px 20px;}
+.card h2{font-size:15px; margin:0 0 12px; display:flex; align-items:center; gap:8px;}
+.card h2 .n{width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+
+/* --- 基本資料 --- */
+.grid-basic{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px;}
+.field label{display:block; font-size:12px; color:var(--sub); margin-bottom:4px;}
+.field input,.field select{
+  width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px;
+  background:var(--bg); color:var(--ink); font-size:14px;
+}
+.name-suggest{display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:6px;}
+.name-suggest .sg-hint{width:100%; font-size:11px; color:var(--sub); font-weight:600;}
+.name-suggest .sg-btn{padding:4px 11px; border-radius:16px; border:1.5px solid var(--blue); background:var(--blue-bg); color:var(--blue); font-size:12px; cursor:pointer; white-space:nowrap;}
+.name-suggest .sg-btn:active{background:var(--blue); color:#fff;}
+.allergy-toggle{display:flex; gap:8px;}
+.allergy-toggle button{
+  flex:1; padding:8px; border-radius:8px; border:1px solid var(--line); background:var(--bg);
+  color:var(--ink); cursor:pointer; font-size:13px;
+}
+.allergy-toggle button.active-yes{background:var(--red-bg); border-color:var(--red); color:var(--red); font-weight:600;}
+.allergy-toggle button.active-no{background:var(--green-bg); border-color:var(--green); color:var(--green); font-weight:600;}
+
+/* --- 健保項目清單 --- */
+.item-groups{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px;}
+.group h3{font-size:13px; color:var(--sub); margin:0 0 8px; border-left:3px solid var(--blue); padding-left:8px;}
+.item-row{border:1px solid var(--line); border-radius:10px; margin-bottom:6px; overflow:hidden; background:var(--bg);}
+.item-head{display:flex; align-items:flex-start; gap:8px; padding:8px 10px; cursor:pointer;}
+.item-head input[type=checkbox]{margin-top:3px; width:16px; height:16px; flex-shrink:0;}
+.item-head .code{font-weight:700; font-size:12.5px; color:var(--blue); white-space:nowrap;}
+.item-head .name{font-size:13px; flex:1;}
+.item-head .badges{display:flex; gap:4px; flex-wrap:wrap;}
+.badge{font-size:10px; padding:2px 6px; border-radius:10px; white-space:nowrap;}
+.badge.rx{background:var(--amber-bg); color:var(--amber);}
+.badge.canal{background:var(--blue-bg); color:var(--blue);}
+.badge.surf{background:var(--green-bg); color:var(--green);}
+.item-detail{display:none; padding:10px; border-top:1px dashed var(--line); background:var(--panel);}
+.item-detail.open{display:block;}
+
+/* 牙位＋牙面 (樹脂) */
+.tooth-block{border:1px solid var(--line); border-radius:8px; padding:8px; margin-bottom:8px; background:var(--bg);}
+.tooth-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+.tooth-row input[type=text]{width:70px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); font-size:13px;}
+.surf-btns{display:flex; gap:4px;}
+.surf-btns button{
+  width:30px; height:30px; border-radius:6px; border:1px solid var(--line); background:var(--panel);
+  color:var(--ink); font-size:12px; cursor:pointer; font-weight:600;
+}
+.surf-btns button.on{background:var(--green); border-color:var(--green); color:#fff;}
+.mini-btn{border:none; background:none; color:var(--sub); cursor:pointer; font-size:16px; padding:2px 6px;}
+.mini-btn:hover{color:var(--red);}
+.add-tooth-btn{font-size:12px; color:var(--blue); background:none; border:1px dashed var(--blue); border-radius:8px; padding:6px 10px; cursor:pointer;}
+
+/* 根管 */
+.canal-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px; padding:6px; background:var(--bg); border-radius:6px;}
+.canal-row span.tag{font-size:12px; color:var(--sub); width:56px;}
+.canal-row input,.canal-row select{padding:5px 6px; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); font-size:12.5px;}
+.canal-row input[type=text]{width:60px;}
+
+/* --- 暫存區 / 已確認清單（共用：樹脂牙位、根管、開藥）--- */
+.staging-box{border:1px dashed var(--blue); border-radius:8px; padding:10px; margin-bottom:10px; background:var(--blue-bg);}
+.staging-box .staging-title{font-size:11px; color:var(--blue); font-weight:600; margin-bottom:6px;}
+.staging-actions{display:flex; gap:8px; margin-top:8px;}
+.confirmed-list{display:flex; flex-direction:column; gap:6px;}
+.confirmed-row{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 10px; background:var(--bg); border:1px solid var(--line); border-radius:8px; font-size:13px;}
+.confirmed-row .txt{flex:1; word-break:break-all;}
+.confirmed-row .ops{display:flex; gap:4px; flex-shrink:0;}
+.confirmed-row .ops button{padding:4px 9px; font-size:12px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer;}
+.confirmed-row .ops button.edit{color:var(--blue); border-color:var(--blue);}
+.confirmed-row .ops button.del{color:var(--red); border-color:var(--red);}
+.confirmed-empty{font-size:12px; color:var(--sub); padding:2px 0 6px;}
+
+/* --- 開藥 --- */
+.rx-summary{font-size:12px; color:var(--sub); margin-bottom:10px;}
+.rx-item{display:grid; grid-template-columns:repeat(auto-fit,minmax(90px,1fr)); gap:8px; align-items:center;}
+.rx-item input,.rx-item select{padding:7px 8px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--ink); font-size:13px;}
+.warn-banner{background:var(--red-bg); color:var(--red); border:1px solid var(--red); border-radius:8px; padding:8px 12px; font-size:13px; margin-bottom:10px; display:none;}
+.warn-banner.show{display:block;}
+
+/* --- 摘要 --- */
+#summaryBox{white-space:pre-wrap; font-family:ui-monospace,Menlo,monospace; font-size:13px; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:12px; min-height:80px;}
+.btn{padding:9px 16px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; font-size:13px;}
+.btn.primary{background:var(--blue); border-color:var(--blue); color:#fff; font-weight:600;}
+.btn.ghost{background:none;}
+.btn.danger{color:var(--red); border-color:var(--red);}
+.row-actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+
+/* --- 病歷紀錄清單 --- */
+#recordList{display:flex; flex-direction:column; gap:6px;}
+.record-item{display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--bg); border:1px solid var(--line); border-radius:8px; font-size:13px;}
+.record-item .meta{color:var(--sub); font-size:12px;}
+.record-item .ops button{margin-left:6px;}
+
+.small{font-size:11px; color:var(--sub);}
+footer{text-align:center; color:var(--sub); font-size:12px; padding:20px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🦷 健保批價醫囑系統（原型）</h1>
+  <span class="tag">大原牙醫診所 · 本機試做 / 尚未串接語音醫囑</span>
+</header>
+
+<main>
+
+  <!-- 1. 基本資料 -->
+  <section class="card">
+    <h2><span class="n">1</span>患者與就醫基本資料</h2>
+    <div class="grid-basic">
+      <div class="field">
+        <label>姓名</label>
+        <input type="text" id="pName" placeholder="王小明" autocomplete="off" oninput="updateNameSuggestions('pName')">
+        <div class="name-suggest" id="pName-suggest"></div>
+      </div>
+      <div class="field"><label>就醫日期</label><input type="date" id="pVisitDate"></div>
+      <div class="field"><label>出生日期</label><input type="date" id="pBirth"></div>
+      <div class="field"><label>診治醫師</label>
+        <select id="pDoctor">
+          <option>王益暉醫師</option>
+          <option>王崇丞醫師</option>
+        </select>
+      </div>
+      <div class="field"><label>傷病名稱＋代碼</label><input type="text" id="pDx" placeholder="例：K02.1 齲齒"></div>
+      <div class="field">
+        <label>過敏史</label>
+        <div class="allergy-toggle">
+          <button type="button" id="allergyNo" onclick="setAllergy(false)">不會過敏</button>
+          <button type="button" id="allergyYes" onclick="setAllergy(true)">會過敏</button>
+        </div>
+      </div>
+    </div>
+    <div class="field" style="margin-top:10px;">
+      <label>過敏藥物 / 備註（若「會過敏」請填寫）</label>
+      <input type="text" id="pAllergyNote" placeholder="例：Penicillin、NSAID">
+    </div>
+  </section>
+
+  <!-- 2. 健保申請項目 -->
+  <section class="card">
+    <h2><span class="n">2</span>健保申請項目（可複選）</h2>
+    <div class="small" style="margin-bottom:10px;">勾選項目後，若該項目需填牙面／根管資料，會展開子欄位。<span class="badge rx" style="margin-left:6px;">需開藥</span> 會自動列入下方開藥清單。</div>
+    <div class="item-groups" id="itemGroups"></div>
+  </section>
+
+  <!-- 3. 開藥與過敏確認 -->
+  <section class="card">
+    <h2><span class="n">3</span>開藥醫囑</h2>
+    <div class="warn-banner" id="rxAllergyWarn">⚠️ 病患標記「會過敏」，開立藥品前請再次確認過敏藥物，避免處方衝突。</div>
+    <div class="rx-summary" id="rxAutoNote"></div>
+    <div id="rxStagingArea"></div>
+    <div id="rxConfirmedList" class="confirmed-list"></div>
+  </section>
+
+  <!-- 4. 摘要 -->
+  <section class="card">
+    <h2><span class="n">4</span>批價醫囑摘要</h2>
+    <div id="summaryBox">尚無資料</div>
+    <div class="row-actions">
+      <button class="btn primary" onclick="refreshSummary()">重新產生摘要</button>
+      <button class="btn" onclick="copySummary()">複製摘要文字</button>
+      <button class="btn" onclick="saveRecord()">💾 儲存本次病歷</button>
+      <button class="btn ghost" onclick="resetForm()">清空重填</button>
+    </div>
+  </section>
+
+  <!-- 5. 已儲存病歷 -->
+  <section class="card">
+    <h2><span class="n">5</span>本機已儲存病歷（localStorage，僅供試做測試）</h2>
+    <div id="recordList"></div>
+  </section>
+
+</main>
+
+<footer>健保批價醫囑系統原型 · 純前端本機儲存，尚未接後端 / 語音醫囑系統整合</footer>
+
+<script>
+/* ---------------- 資料定義 ---------------- */
+// type: 'plain' | 'resin' | 'canal'
+// canalCount: 根管治療預設根管數
+const ITEMS = [
+  { group:'X光 / 影像', items:[
+    {code:'01271', name:'全口X光（傷病名稱＋小單）', type:'plain'},
+    {code:'34001', name:'根尖周X光（1）', type:'toothlist'},
+  ]},
+  { group:'複合樹脂填補（需牙位＋牙面）', items:[
+    {code:'89004', name:'單面前牙複合樹脂', type:'resin'},
+    {code:'89005', name:'雙面前牙複合樹脂', type:'resin'},
+    {code:'89012', name:'三面前牙複合樹脂', type:'resin'},
+    {code:'89014', name:'前牙鄰接面複合樹脂', type:'resin'},
+    {code:'89008', name:'單面後牙複合樹脂', type:'resin'},
+    {code:'89009', name:'雙面後牙複合樹脂', type:'resin'},
+    {code:'89010', name:'三面後牙複合樹脂', type:'resin'},
+    {code:'89015', name:'後牙鄰接面複合樹脂', type:'resin'},
+    {code:'89013', name:'複合體充填（Compomer）', type:'resin'},
+  ]},
+  { group:'根管治療（需牙位＋長度＋擴大號數）', items:[
+    {code:'90004', name:'齒內緊急處理', type:'plain'},
+    {code:'90015', name:'髓腔開擴', rx:true, type:'plain'},
+    {code:'90001', name:'單根根管治療', rx:true, type:'canal', canalCount:1},
+    {code:'90002', name:'雙根根管治療', rx:true, type:'canal', canalCount:2},
+    {code:'90003', name:'三根根管治療', rx:true, type:'canal', canalCount:3},
+    {code:'90019', name:'四根根管治療', rx:true, type:'canal', canalCount:4},
+    {code:'90020', name:'五根根管治療以上', rx:true, type:'canal', canalCount:5},
+    {code:'90016', name:'乳牙根管治療', type:'canal', canalCount:1},
+    {code:'90018', name:'乳牙多根根管治療', type:'canal', canalCount:2},
+    {code:'90094', name:'根管重新治療（+1）', type:'plain'},
+    {code:'90091', name:'C根管', type:'canal', canalCount:1},
+    {code:'90093', name:'彎曲．鈣化．斷針', type:'plain'},
+    {code:'90092', name:'額外根管', type:'canal', canalCount:1},
+    {code:'90008', name:'去除鑄心', type:'plain'},
+    {code:'90007', name:'去除牙冠', type:'plain'},
+    {code:'90012', name:'橡皮章防濕裝置（+1）', type:'plain'},
+  ]},
+  { group:'洗牙 / 牙周', items:[
+    {code:'91017', name:'懷孕全口洗牙', type:'plain'},
+    {code:'91090', name:'高風險全口洗牙', type:'plain'},
+    {code:'91089', name:'糖尿病全口洗牙', type:'plain'},
+    {code:'91005', name:'口乾症全口洗牙', type:'plain'},
+    {code:'91003', name:'局部洗牙', type:'plain'},
+    {code:'91004', name:'全口洗牙', type:'plain'},
+    {code:'91008', name:'局部牙齦下刮除（前）', type:'plain'},
+    {code:'91011', name:'局部牙齦切除', type:'plain'},
+    {code:'91013', name:'單顆牙齦切除', type:'plain'},
+    {code:'92071', name:'口內切開排膿', rx:true, type:'plain'},
+    {code:'92001', name:'非特定局部治療', type:'plain'},
+    {code:'91001', name:'牙周病緊急處理', type:'plain'},
+    {code:'91020', name:'牙菌斑照護', type:'plain'},
+    {code:'81', name:'塗氟', type:'plain'},
+  ]},
+  { group:'拔牙 / 口腔外科（多需開藥）', items:[
+    {code:'92013', name:'簡單性拔牙', rx:true, type:'plain'},
+    {code:'92014', name:'複雜性拔牙', rx:true, type:'plain'},
+    {code:'92015', name:'單純齒切除術', rx:true, type:'plain'},
+    {code:'92016', name:'複雜齒切除術', rx:true, type:'plain'},
+    {code:'92027', name:'齦蓋切除', rx:true, type:'plain'},
+    {code:'92033H', name:'臼齒切半術', rx:true, type:'plain'},
+    {code:'92030', name:'前齒齒根尖切除術', rx:true, type:'plain'},
+    {code:'92031', name:'小臼齒根尖切除術', rx:true, type:'plain'},
+    {code:'92032', name:'大臼齒根尖切除術', rx:true, type:'plain'},
+    {code:'92012', name:'拔牙特別處理', rx:true, type:'plain'},
+    {code:'92005', name:'拆線', type:'plain'},
+    {code:'92055', name:'乳牙拔除', type:'plain'},
+  ]},
+  { group:'其他', items:[
+    {code:'92088', name:'轉出轉診（部位＋傷病名稱）', type:'plain'},
+    {code:'P7302', name:'高齲齒塗氟（衛教＋簽名）', type:'plain'},
+    {code:'P3601', name:'特定就醫安全', type:'plain'},
+    {code:'92133', name:'國定假日牙醫門診處理', type:'plain'},
+  ]},
+];
+
+const SURFACES = ['M','D','O','B','L','P','F']; // 近中/遠中/咬合/頰側/舌側/顎側/唇(面)側
+const FILE_SIZES = [15,20,25,30,35,40,45,50,55,60,70,80,90,100];
+
+/* ---------------- 狀態 ---------------- */
+// selected[code] = { checked, staging:{...新增暫存}, confirmed:[...已確認清單], editingIndex:null|number }
+let state = {
+  allergy: null, // true / false / null
+  selected: {},
+  rx: [], // 已確認藥品 {name, dose, freq, days}
+  rxStaging: { name:'', dose:'', freq:'TID', days:'3' },
+  rxEditingIndex: null,
+};
+
+function newStaging(def){
+  if(def.type==='resin') return { tooth:'', surfaces:new Set() };
+  if(def.type==='canal') return { tooth:'', rows: Array.from({length:def.canalCount||1}, ()=>({len:'',size:''})) };
+  if(def.type==='toothlist') return { tooth:'' };
+  return {};
+}
+function cloneStaging(def, entry){
+  if(def.type==='resin') return { tooth: entry.tooth, surfaces: new Set(entry.surfaces) };
+  if(def.type==='canal') return { tooth: entry.tooth, rows: entry.rows.map(r=>({...r})) };
+  if(def.type==='toothlist') return { tooth: entry.tooth };
+  return {};
+}
+
+const RX_KEYWORD_ITEMS = new Set();
+ITEMS.forEach(g=>g.items.forEach(it=>{ if(it.rx) RX_KEYWORD_ITEMS.add(it.code); }));
+
+/* ---------------- 姓名建議（沿用語音醫囑系統 dental-voice 的歷史姓名比對邏輯與資料源）---------------- */
+// 資料源：大原每日紀錄 Google 雲端硬碟，經 dental-voice 既有 Apps Script 彙整姓名清單
+const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz9QrtrBAmW72_NEEUpkcAh0YP1DFCBaSL5tKnRwjMBfxzAo1RX7Gt4m73FFP-bZ_Gm/exec';
+let scriptUrl = DEFAULT_SCRIPT_URL;
+let serverNamePool = [];
+
+const PATIENT_NAME_SEED = ["于蔡玉鶴","何倚威","何元魁","何文馨","何明憲","余天受","余天授","余幸蓉","余懷安","余王明杏","倪韶永","劉奕威","劉強生","劉志芳","劉昭燕","劉曉琪","劉淑美","原志永","史艾克","吳佳玲","吳啟立","吳嘉祥","吳孟珠","吳怡靜","吳明田","吳東男","吳桂珍","吳桂禎","吳淑女","吳玉芬","吳睿騰","吳簡清連","吳簡青蓮","吳雲菲","周文隆","周東琴","周翊華","周蓮青","周連青","周麟昇","唐志春","唐英哲","大原二郎","姚叔安","婁荷花","宋成瑜","宣寶莉","尹運修","巫逸慈","康永勛","廖華白","張世孟","張俊瑞","張凱","張則鈞","張宜玲","張峻睿","張忠霖","張時","張杉","張榕棻","張淑惠","張玉如","張祐糸","張秀涵","張素燕","張育儒","張育凡","張舜傑","張蓉棻","張衫","張豐","張豐凱","張鐘霖","彭建成","彭豔飛","徐時強","徐水支","徐淳昊","方許麗香","施睿欣","施睿貞","易彩雲","曾國補","曾子玲","曾德水","曾心會","曾文宏","曾記維","朱寶蓮","李彥秋","李彩螢","李文祥","李明珠","李玉勻","李陳宜","李雅惠","李鳳珠","林佩瑩","林勤倉","林大偉","林姿秀","林婷玉","林思臣","林恩如","林意容","林敏和","林昀希","林春好","林月鳳","林瑞展","林益全","林秀芬","林秀英","林維華","林美利","林美子","林美珍","林美麗","林蔭","林音儒","林麗娟","林麗珠","林麗琴","林龍珠","梁季葳","楊元碩","楊喬瑜","楊惠琪","楊承威","楊明月","楊智欽","楊曉蓉","楊月霞","楊東謀","楊正豐","楊淑琪","江志忠","江文章","洪建成","洪張阿軸","洪秋海","涂秀美","游連桂","湯守榮","溫秋遠","潮月領","王世福","王仁溪","王仙桂","王佳文","王兆実","王凱弘","王威揚","王易飛","王朝佑","王毅輝","王玲玲","王盛郎","王瞳雲","王立群","王美琇","王美秀","王肇陽","王臣萍","王雅惠","盧正倫","盧黃玉倫","石雅馨","簡嘉妤","簡實繡花","簡淑芬","粘紹勇","紀冠如","羅純敏","翁志成","莊瑜玲","葉斯貴","蔡ㄧ萍","蔡承翰","蔡文毅","蔡文義","蔡樹枝","蔡水寶","蔡美惠","蔡耀煌","蔡詠欣","蔡雨珊","蘇婉玲","蘇小雲","蘇湘琴","蘇郁勻","許元玲","許博正","許嘉琦","許建合","許建泰","許林碧珠","許瑞傑","許金菊","詹含笑","詹庚佑","詹鳳霞","謝文豪","謝智凱","賴孟宜","賴敏惠","賴錦勝","賴靖國","趙子民","趙美理","趙美裡","週良展","邱其修","邱家駿","邱美香","邱詩音","邱雨倫","郭素蓮","郭維國","都永成","鄒偉柏","鄒瑋伯","鄭宇珊","鄭恩儀","鄭秉峰","鄭美麗","鄭英真","鄭螢筑","鄭馮景玲","鄭馮錦玲","鐘建滿","鐘源忠","鐘間滿","陳世斌","陳佩儀","陳佩怡","陳其平","陳勝智","陳奇叡","陳奇敬","陳奕安","陳孟竹","陳宏義","陳寶猜","陳彥奇","陳志瑋","陳怡仁","陳怡如","陳惠容","陳惠蘭","陳慧蓉","陳慧龍","陳文漢","陳新陽","陳昀臻","陳林瓊碧","陳桂花","陳正國","陳正龍","陳瑜芳","陳秋涼","陳秋芬","陳翠玲","陳金鳳","陳雲平","陳雲玉","陳頌光","陳鳳梅","雅玉","韓丹","韓文孟","餘佑安","饒鐵樹","馬世方","馮宜嫻","高宗妙","高明仁","高碧琴","高聖傑","高靖琦","魏愛勻","魏顯傑","鶴圓圓","黃冠嘉","黃協成","黃宣禎","黃張蘭嬌","黃思微","黃捷家","黃敏燕","黃文燦","黃明吉","黃春淦","黃昭南教","黃書筠","黃玉婷","黃玲家","黃理信之","黃秀玲","黃秋英","黃紹恩","黃美春","黃耀霆","黃育賢","黃雅珍","黃麗葉","黎于萍","黎玲君"];
+
+const NAME_BLOCKLIST = new Set(['Masky', 'kaoli', 'masky wang', 'test', '測試', '試驗', '你少用', '光影響', '我夢中', '種原中', '糖吃飽', '週年慶', '樹林血清', '檢驗親', '老鐵樹', '逸安', '鋁船艙',
+  '黃思微', '李采縈', '余天受', '張育儒', '吳簡清連', '洪張阿軸', '鐘間滿', '鄭馮景玲', '蘇婉菱',
+  'Ｍasky', '大原二郎', '鶴圓圓', '黃昭南教', '張祐糸', '蔡ㄧ萍',
+  '趙美里', '何倚威', '張衫', '陳林瓊璧', '邱祺修', '曾記維', '張忠霖', '鄭英真',
+  '黃張蘭矯', '余辛蓉', '吳雲菲', '蔡雨珊', '吳簡青蓮', '雅玉', '張佑糸']);
+
+async function loadServerNames(){
+  try{
+    const res = await fetch(scriptUrl + '?action=getNames&_=' + Date.now(), { cache:'no-store' });
+    const data = await res.json();
+    if(data.result==='success' && Array.isArray(data.names)){
+      serverNamePool = data.names.filter(n=>!NAME_BLOCKLIST.has(n));
+    }
+  }catch(e){ /* 離線或跨網域時，退回種子清單 */ }
+}
+
+function getNamePool(){
+  const fromRecords = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]').map(r=>r.name).filter(Boolean);
+  const base = serverNamePool.length > 0 ? serverNamePool : PATIENT_NAME_SEED;
+  return [...new Set([...base, ...fromRecords])];
+}
+
+function levenshtein(a, b){
+  const dp = Array.from({length:a.length+1}, (_,i)=>[i, ...Array(b.length).fill(0)]);
+  for(let j=0;j<=b.length;j++) dp[0][j]=j;
+  for(let i=1;i<=a.length;i++){
+    for(let j=1;j<=b.length;j++){
+      dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j-1], dp[i-1][j], dp[i][j-1]);
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+function suggestNames(query){
+  query = (query||'').trim();
+  if(!query) return [];
+  const pool = getNamePool();
+  if(pool.includes(query)) return [];
+  const scored = pool
+    .map(n=>({ name:n, dist:levenshtein(query,n) }))
+    .filter(s=>s.dist>0 && s.dist<=Math.max(1, Math.ceil(Math.max(query.length, s.name.length)/2)))
+    .sort((a,b)=>a.dist-b.dist);
+  return scored.slice(0,10).map(s=>s.name);
+}
+
+function updateNameSuggestions(fieldId){
+  const el = document.getElementById(fieldId+'-suggest');
+  if(!el) return;
+  const query = document.getElementById(fieldId).value;
+  const matches = suggestNames(query);
+  if(matches.length===0){ el.innerHTML=''; return; }
+  el.innerHTML = '<span class="sg-hint">是不是要找</span>' +
+    matches.map(n=>`<button type="button" class="sg-btn" onclick="pickSuggestedName('${fieldId}','${n}')">${n}</button>`).join('');
+}
+
+function pickSuggestedName(fieldId, name){
+  const input = document.getElementById(fieldId);
+  input.value = name;
+  document.getElementById(fieldId+'-suggest').innerHTML = '';
+  input.focus();
+  refreshSummary();
+}
+
+/* ---------------- 渲染：健保項目清單 ---------------- */
+const itemGroupsEl = document.getElementById('itemGroups');
+
+function renderItemGroups(){
+  itemGroupsEl.innerHTML = '';
+  ITEMS.forEach(group=>{
+    const g = document.createElement('div');
+    g.className = 'group';
+    g.innerHTML = `<h3>${group.group}</h3>`;
+    group.items.forEach(it=>{
+      const row = document.createElement('div');
+      row.className = 'item-row';
+      const badges = [];
+      if(it.rx) badges.push('<span class="badge rx">需開藥</span>');
+      if(it.type==='resin') badges.push(`<span class="badge surf">牙面 ${SURFACES.join('')}</span>`);
+      if(it.type==='canal') badges.push('<span class="badge canal">長度／號數</span>');
+      if(it.type==='toothlist') badges.push('<span class="badge canal">牙位（可複選）</span>');
+      row.innerHTML = `
+        <div class="item-head" onclick="toggleItem('${it.code}')">
+          <input type="checkbox" id="chk-${it.code}" onclick="event.stopPropagation(); toggleItem('${it.code}')">
+          <span class="code">${it.code}</span>
+          <span class="name">${it.name}</span>
+          <span class="badges">${badges.join('')}</span>
+        </div>
+        <div class="item-detail" id="detail-${it.code}"></div>
+      `;
+      g.appendChild(row);
+    });
+    itemGroupsEl.appendChild(g);
+  });
+}
+
+function getItemDef(code){
+  for(const g of ITEMS) for(const it of g.items) if(it.code===code) return it;
+}
+
+function toggleItem(code){
+  const chk = document.getElementById('chk-'+code);
+  const willCheck = !state.selected[code] || !state.selected[code].checked;
+  chk.checked = willCheck;
+  const def = getItemDef(code);
+  if(willCheck){
+    if(!state.selected[code]){
+      state.selected[code] = { checked:true, staging:newStaging(def), confirmed:[], editingIndex:null };
+    } else {
+      state.selected[code].checked = true;
+    }
+  } else {
+    state.selected[code].checked = false;
+  }
+  renderDetail(code);
+  syncRxSuggestions();
+  refreshSummary();
+}
+
+function entrySummaryText(def, entry){
+  if(def.type==='resin') return `${entry.tooth||'（未填牙位）'} (${[...entry.surfaces].join('')||'未選牙面'})`;
+  if(def.type==='canal'){
+    const rowsTxt = entry.rows.map((r,i)=>`根管${i+1}: ${r.len||'?'}mm/#${r.size||'?'}`).join('，');
+    return `${entry.tooth||'（未填牙位）'}［${rowsTxt}］`;
+  }
+  if(def.type==='toothlist') return entry.tooth||'（未填牙位）';
+  return '';
+}
+
+function renderDetail(code){
+  const def = getItemDef(code);
+  const detailEl = document.getElementById('detail-'+code);
+  const sel = state.selected[code];
+  if(!sel || !sel.checked || def.type==='plain'){
+    detailEl.classList.remove('open');
+    detailEl.innerHTML = '';
+    return;
+  }
+  detailEl.classList.add('open');
+  const editing = sel.editingIndex !== null;
+  const s = sel.staging;
+
+  let stagingFields = '';
+  if(def.type==='resin'){
+    stagingFields = `
+      <div class="tooth-row">
+        <span class="small">牙位</span>
+        <input type="text" placeholder="例 16" value="${s.tooth}" oninput="updateStagingTooth('${code}',this.value)">
+        <div class="surf-btns">
+          ${SURFACES.map(sf=>`<button type="button" class="${s.surfaces.has(sf)?'on':''}" onclick="toggleStagingSurface('${code}','${sf}')">${sf}</button>`).join('')}
+        </div>
+      </div>`;
+  } else if(def.type==='canal'){
+    stagingFields = `
+      <div class="tooth-row" style="margin-bottom:6px;">
+        <span class="small">牙位</span>
+        <input type="text" placeholder="例 36" value="${s.tooth}" oninput="updateStagingTooth('${code}',this.value)">
+      </div>
+      ${s.rows.map((r,ri)=>`
+        <div class="canal-row">
+          <span class="tag">根管 ${ri+1}</span>
+          <input type="text" placeholder="長度 mm" value="${r.len}" oninput="updateStagingCanalRow('${code}',${ri},'len',this.value)" style="width:80px;">
+          <span class="small">mm ／ 擴大號數</span>
+          <select onchange="updateStagingCanalRow('${code}',${ri},'size',this.value)">
+            <option value="">－</option>
+            ${FILE_SIZES.map(sz=>`<option value="${sz}" ${String(r.size)===String(sz)?'selected':''}>#${sz}</option>`).join('')}
+          </select>
+          <button class="mini-btn" onclick="removeStagingCanalRow('${code}',${ri})">✕</button>
+        </div>
+      `).join('')}
+      <button type="button" class="add-tooth-btn" onclick="addStagingCanalRow('${code}')">＋ 新增根管</button>`;
+  } else if(def.type==='toothlist'){
+    stagingFields = `
+      <div class="tooth-row">
+        <span class="small">牙位</span>
+        <input type="text" placeholder="例 16" value="${s.tooth}" oninput="updateStagingTooth('${code}',this.value)">
+      </div>`;
+  }
+
+  const confirmedHtml = sel.confirmed.length
+    ? sel.confirmed.map((entry,idx)=>`
+        <div class="confirmed-row">
+          <span class="txt">${entrySummaryText(def, entry)}</span>
+          <span class="ops">
+            <button type="button" class="edit" onclick="editConfirmedEntry('${code}',${idx})">編輯</button>
+            <button type="button" class="del" onclick="deleteConfirmedEntry('${code}',${idx})">刪除</button>
+          </span>
+        </div>
+      `).join('')
+    : '<div class="confirmed-empty">尚未確認任何牙位資料</div>';
+
+  detailEl.innerHTML = `
+    <div class="staging-box">
+      <div class="staging-title">${editing ? '✎ 編輯第 '+(sel.editingIndex+1)+' 筆' : '＋ 新增牙位（暫存區，填完請按確定新增）'}</div>
+      ${stagingFields}
+      <div class="staging-actions">
+        <button type="button" class="btn primary" onclick="confirmStagingEntry('${code}')">${editing ? '更新此筆' : '確定新增'}</button>
+        ${editing ? `<button type="button" class="btn ghost" onclick="cancelStagingEdit('${code}')">取消編輯</button>` : ''}
+      </div>
+    </div>
+    <div class="confirmed-list">${confirmedHtml}</div>
+  `;
+}
+
+/* --- 暫存區欄位操作 --- */
+function updateStagingTooth(code, val){
+  state.selected[code].staging.tooth = val;
+}
+function toggleStagingSurface(code, s){
+  const set = state.selected[code].staging.surfaces;
+  set.has(s) ? set.delete(s) : set.add(s);
+  renderDetail(code);
+}
+function addStagingCanalRow(code){
+  state.selected[code].staging.rows.push({len:'',size:''});
+  renderDetail(code);
+}
+function removeStagingCanalRow(code, ri){
+  state.selected[code].staging.rows.splice(ri,1);
+  renderDetail(code);
+}
+function updateStagingCanalRow(code, ri, field, val){
+  state.selected[code].staging.rows[ri][field] = val;
+}
+
+/* --- 確認 / 編輯 / 刪除 已確認清單 --- */
+function confirmStagingEntry(code){
+  const def = getItemDef(code);
+  const sel = state.selected[code];
+  if(!sel.staging.tooth){
+    alert('請先填寫牙位');
+    return;
+  }
+  const entry = cloneStaging(def, sel.staging);
+  if(sel.editingIndex !== null){
+    sel.confirmed[sel.editingIndex] = entry;
+    sel.editingIndex = null;
+  } else {
+    sel.confirmed.push(entry);
+  }
+  sel.staging = newStaging(def);
+  renderDetail(code);
+  refreshSummary();
+}
+function editConfirmedEntry(code, idx){
+  const def = getItemDef(code);
+  const sel = state.selected[code];
+  sel.staging = cloneStaging(def, sel.confirmed[idx]);
+  sel.editingIndex = idx;
+  renderDetail(code);
+}
+function deleteConfirmedEntry(code, idx){
+  const def = getItemDef(code);
+  const sel = state.selected[code];
+  sel.confirmed.splice(idx,1);
+  if(sel.editingIndex === idx){
+    sel.editingIndex = null;
+    sel.staging = newStaging(def);
+  } else if(sel.editingIndex !== null && sel.editingIndex > idx){
+    sel.editingIndex--;
+  }
+  renderDetail(code);
+  refreshSummary();
+}
+function cancelStagingEdit(code){
+  const def = getItemDef(code);
+  const sel = state.selected[code];
+  sel.editingIndex = null;
+  sel.staging = newStaging(def);
+  renderDetail(code);
+}
+
+/* ---------------- 過敏 ---------------- */
+function setAllergy(v){
+  state.allergy = v;
+  document.getElementById('allergyYes').className = v===true ? 'active-yes' : '';
+  document.getElementById('allergyNo').className = v===false ? 'active-no' : '';
+  document.getElementById('rxAllergyWarn').classList.toggle('show', v===true);
+  refreshSummary();
+}
+
+/* ---------------- 開藥（暫存區 → 確認清單） ---------------- */
+const rxStagingEl = document.getElementById('rxStagingArea');
+const rxConfirmedEl = document.getElementById('rxConfirmedList');
+const rxAutoNoteEl = document.getElementById('rxAutoNote');
+const RX_FREQS = ['QD','BID','TID','QID','HS','PRN'];
+
+function updateRxStaging(field, val){
+  state.rxStaging[field] = val;
+}
+function confirmRxEntry(){
+  if(!state.rxStaging.name){
+    alert('請先填寫藥品名稱');
+    return;
+  }
+  const entry = { ...state.rxStaging };
+  if(state.rxEditingIndex !== null){
+    state.rx[state.rxEditingIndex] = entry;
+    state.rxEditingIndex = null;
+  } else {
+    state.rx.push(entry);
+  }
+  state.rxStaging = { name:'', dose:'', freq:'TID', days:'3' };
+  renderRx();
+}
+function editRxEntry(idx){
+  state.rxStaging = { ...state.rx[idx] };
+  state.rxEditingIndex = idx;
+  renderRx();
+}
+function deleteRxEntry(idx){
+  state.rx.splice(idx,1);
+  if(state.rxEditingIndex === idx){
+    state.rxEditingIndex = null;
+    state.rxStaging = { name:'', dose:'', freq:'TID', days:'3' };
+  } else if(state.rxEditingIndex !== null && state.rxEditingIndex > idx){
+    state.rxEditingIndex--;
+  }
+  renderRx();
+}
+function cancelRxEdit(){
+  state.rxEditingIndex = null;
+  state.rxStaging = { name:'', dose:'', freq:'TID', days:'3' };
+  renderRx();
+}
+function renderRx(){
+  const editing = state.rxEditingIndex !== null;
+  const s = state.rxStaging;
+  rxStagingEl.innerHTML = `
+    <div class="staging-box">
+      <div class="staging-title">${editing ? '✎ 編輯第 '+(state.rxEditingIndex+1)+' 筆藥品' : '＋ 新增藥品（暫存區，填完請按確定新增）'}</div>
+      <div class="rx-item">
+        <input type="text" placeholder="藥品名稱" value="${s.name}" oninput="updateRxStaging('name',this.value)">
+        <input type="text" placeholder="劑量" value="${s.dose}" oninput="updateRxStaging('dose',this.value)">
+        <select onchange="updateRxStaging('freq',this.value)">
+          ${RX_FREQS.map(f=>`<option ${s.freq===f?'selected':''}>${f}</option>`).join('')}
+        </select>
+        <input type="text" placeholder="天數" value="${s.days}" oninput="updateRxStaging('days',this.value)">
+      </div>
+      <div class="staging-actions">
+        <button type="button" class="btn primary" onclick="confirmRxEntry()">${editing ? '更新此筆' : '確定新增'}</button>
+        ${editing ? `<button type="button" class="btn ghost" onclick="cancelRxEdit()">取消編輯</button>` : ''}
+      </div>
+    </div>
+  `;
+  rxConfirmedEl.innerHTML = state.rx.length
+    ? state.rx.map((r,idx)=>`
+        <div class="confirmed-row">
+          <span class="txt">${r.name||'（未填藥名）'}　${r.dose||''}　${r.freq}　×${r.days||'?'}天</span>
+          <span class="ops">
+            <button type="button" class="edit" onclick="editRxEntry(${idx})">編輯</button>
+            <button type="button" class="del" onclick="deleteRxEntry(${idx})">刪除</button>
+          </span>
+        </div>
+      `).join('')
+    : '<div class="confirmed-empty">尚未確認任何藥品</div>';
+  refreshSummary();
+}
+
+function syncRxSuggestions(){
+  const triggered = Object.keys(state.selected)
+    .filter(code=>state.selected[code].checked && getItemDef(code).rx)
+    .map(code=>`${code} ${getItemDef(code).name}`);
+  rxAutoNoteEl.textContent = triggered.length
+    ? `以下已選項目建議開藥／確認是否給藥：${triggered.join('、')}`
+    : '目前所選項目未強制要求開藥，可視臨床狀況自行新增。';
+}
+
+/* ---------------- 摘要 ---------------- */
+function refreshSummary(){
+  const lines = [];
+  lines.push(`【患者】${val('pName')||'（未填）'}　出生：${val('pBirth')||'－'}　就醫：${val('pVisitDate')||'－'}`);
+  lines.push(`【診治醫師】${val('pDoctor')}`);
+  lines.push(`【傷病名稱＋代碼】${val('pDx')||'（未填）'}`);
+  lines.push(`【過敏】${state.allergy===true?'會過敏':(state.allergy===false?'不會過敏':'未確認')}${state.allergy===true && val('pAllergyNote') ? '（'+val('pAllergyNote')+'）' : ''}`);
+  lines.push('');
+  lines.push('【健保申請項目】');
+
+  let any = false;
+  ITEMS.forEach(group=>{
+    group.items.forEach(it=>{
+      const sel = state.selected[it.code];
+      if(!sel || !sel.checked) return;
+      any = true;
+      if(it.type==='resin' || it.type==='canal' || it.type==='toothlist'){
+        const detail = sel.confirmed.map(entry=>entrySummaryText(it, entry)).join('；') || '（尚未確認任何牙位）';
+        lines.push(`・${it.code} ${it.name} — ${detail}`);
+      } else {
+        lines.push(`・${it.code} ${it.name}`);
+      }
+    });
+  });
+  if(!any) lines.push('（尚未勾選任何健保申請項目）');
+
+  lines.push('');
+  lines.push('【開藥醫囑】');
+  if(state.rx.length===0){
+    lines.push('（未開立藥品）');
+  } else {
+    state.rx.forEach(r=>{
+      lines.push(`・${r.name||'（未填藥名）'}　${r.dose||''}　${r.freq}　×${r.days||'?'}天`);
+    });
+  }
+
+  document.getElementById('summaryBox').textContent = lines.join('\n');
+}
+
+function buildAllergyText(){
+  return state.allergy===true ? '會過敏' : (state.allergy===false ? '不會過敏' : '未確認');
+}
+function buildItemsText(){
+  const lines = [];
+  let any = false;
+  ITEMS.forEach(group=>{
+    group.items.forEach(it=>{
+      const sel = state.selected[it.code];
+      if(!sel || !sel.checked) return;
+      any = true;
+      if(it.type==='resin' || it.type==='canal' || it.type==='toothlist'){
+        const detail = sel.confirmed.map(entry=>entrySummaryText(it, entry)).join('；') || '（尚未確認任何牙位）';
+        lines.push(`${it.code} ${it.name} — ${detail}`);
+      } else {
+        lines.push(`${it.code} ${it.name}`);
+      }
+    });
+  });
+  return any ? lines.join('\n') : '（尚未勾選任何健保申請項目）';
+}
+function buildRxText(){
+  if(state.rx.length===0) return '（未開立藥品）';
+  return state.rx.map(r=>`${r.name||'（未填藥名）'} ${r.dose||''} ${r.freq} ×${r.days||'?'}天`).join('\n');
+}
+
+function val(id){ return document.getElementById(id).value; }
+function todayStr(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function copySummary(){
+  const text = document.getElementById('summaryBox').textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    alert('已複製摘要文字');
+  }).catch(()=>{
+    alert('複製失敗，請手動選取文字');
+  });
+}
+
+/* ---------------- 儲存病歷（localStorage ＋ 同步到 Google Sheet「健保批價」分頁）---------------- */
+const STORAGE_KEY = 'dental_billing_records_v1';
+// 獨立部署的 Apps Script（與 dental-voice 完全無關，只寫入同一份 Google Sheet 底下的「健保批價」分頁）
+const BILLING_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4blVHRKlE2QOe8SEF48x9gDOlXcFG3Hy6w04BovepEl_JayUhv7cUyDMhDTxVfRYq/exec';
+
+async function syncRecordToSheet(){
+  if(!BILLING_SCRIPT_URL) return false;
+  const payload = {
+    name: val('pName'),
+    birth: val('pBirth'),
+    visitDate: val('pVisitDate'),
+    doctor: val('pDoctor'),
+    dx: val('pDx'),
+    allergy: buildAllergyText(),
+    allergyNote: state.allergy===true ? val('pAllergyNote') : '',
+    itemsText: buildItemsText(),
+    rxText: buildRxText(),
+  };
+  try{
+    // 用 text/plain 避免觸發 CORS 預檢請求（Apps Script 端仍用 JSON.parse 解析）
+    const res = await fetch(BILLING_SCRIPT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    return data && data.result === 'success';
+  }catch(e){
+    console.warn('雲端同步失敗，僅保留本機紀錄', e);
+    return false;
+  }
+}
+
+async function saveRecord(){
+  const records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  const record = {
+    id: Date.now(),
+    name: val('pName'),
+    visitDate: val('pVisitDate'),
+    doctor: val('pDoctor'),
+    summary: document.getElementById('summaryBox').textContent,
+  };
+  records.unshift(record);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  renderRecordList();
+
+  const synced = await syncRecordToSheet();
+  alert(synced ? '已儲存本次病歷到本機，並同步上傳到 Google Sheet「健保批價」分頁' : '已儲存本次病歷到本機（雲端同步失敗，請確認網路或稍後重試）');
+}
+
+function renderRecordList(){
+  const records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  const el = document.getElementById('recordList');
+  if(records.length===0){
+    el.innerHTML = '<div class="small">尚無已儲存病歷</div>';
+    return;
+  }
+  el.innerHTML = records.map(r=>`
+    <div class="record-item">
+      <div>
+        <strong>${r.name||'（未填姓名）'}</strong>
+        <div class="meta">${r.visitDate||'無日期'} · ${r.doctor}</div>
+      </div>
+      <div class="ops">
+        <button class="btn ghost" onclick='viewRecord(${r.id})'>檢視</button>
+        <button class="btn danger" onclick='deleteRecord(${r.id})'>刪除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function viewRecord(id){
+  const records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  const r = records.find(x=>x.id===id);
+  if(r) alert(r.summary);
+}
+
+function deleteRecord(id){
+  if(!confirm('確定刪除這筆病歷？')) return;
+  let records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  records = records.filter(x=>x.id!==id);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  renderRecordList();
+}
+
+/* ---------------- 重置 ---------------- */
+function resetForm(){
+  if(!confirm('確定清空目前填寫的內容？')) return;
+  document.querySelectorAll('#itemGroups input[type=checkbox]').forEach(c=>c.checked=false);
+  state.selected = {};
+  state.rx = [];
+  state.rxStaging = { name:'', dose:'', freq:'TID', days:'3' };
+  state.rxEditingIndex = null;
+  state.allergy = null;
+  ['pName','pBirth','pDx','pAllergyNote'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('pVisitDate').value = todayStr();
+  document.getElementById('pName-suggest').innerHTML = '';
+  document.getElementById('pDoctor').selectedIndex = 0;
+  setAllergy(null);
+  renderItemGroups();
+  renderRx();
+  syncRxSuggestions();
+  refreshSummary();
+}
+
+/* ---------------- 初始化 ---------------- */
+document.getElementById('pVisitDate').value = todayStr();
+renderItemGroups();
+renderRx();
+syncRxSuggestions();
+refreshSummary();
+renderRecordList();
+loadServerNames();
+</script>
+</body>
+</html>
