@@ -148,6 +148,16 @@ main{max-width:1080px; margin:20px auto; padding:0 16px; display:flex; flex-dire
 
 .small{font-size:11px; color:var(--sub);}
 footer{text-align:center; color:var(--sub); font-size:12px; padding:20px;}
+
+/* --- 病歷檢視 Modal --- */
+.modal-overlay{display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:100; align-items:center; justify-content:center; padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal-card{background:var(--panel); border-radius:14px; padding:20px; width:100%; max-width:640px; max-height:85vh; display:flex; flex-direction:column; gap:12px; box-shadow:0 10px 40px rgba(0,0,0,0.3);}
+.modal-head{display:flex; align-items:center; justify-content:space-between;}
+.modal-head h3{margin:0; font-size:16px;}
+.modal-close{border:none; background:var(--chip); color:var(--ink); width:28px; height:28px; border-radius:50%; cursor:pointer; font-size:14px;}
+.modal-meta{font-size:12px; color:var(--sub); margin-top:-6px;}
+#recordModalText{flex:1; min-height:280px; width:100%; white-space:pre-wrap; font-family:ui-monospace,Menlo,monospace; font-size:13px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:12px; resize:vertical; line-height:1.6;}
 </style>
 </head>
 <body>
@@ -235,6 +245,21 @@ footer{text-align:center; color:var(--sub); font-size:12px; padding:20px;}
   </section>
 
 </main>
+
+<div class="modal-overlay" id="recordModal" onclick="if(event.target===this) closeRecordModal()">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3 id="recordModalTitle">病歷檢視</h3>
+      <button type="button" class="modal-close" onclick="closeRecordModal()">✕</button>
+    </div>
+    <div class="modal-meta" id="recordModalMeta"></div>
+    <textarea id="recordModalText" readonly></textarea>
+    <div class="row-actions">
+      <button class="btn primary" onclick="copyRecordModalText()">複製文字</button>
+      <button class="btn ghost" onclick="closeRecordModal()">關閉</button>
+    </div>
+  </div>
+</div>
 
 <footer>健保批價醫囑系統原型 · 純前端本機儲存，尚未接後端 / 語音醫囑系統整合</footer>
 
@@ -1041,18 +1066,36 @@ function renderRecordList(){
         <div class="meta">${r.visitDate||'無日期'} · ${r.doctor}</div>
       </div>
       <div class="ops">
-        <button class="btn ghost" onclick='viewRecord(${r.id})'>檢視</button>
+        <button class="btn ghost" onclick='openRecordModal(${r.id})'>檢視</button>
         <button class="btn danger" onclick='deleteRecord(${r.id})'>刪除</button>
       </div>
     </div>
   `).join('');
 }
 
-function viewRecord(id){
+function openRecordModal(id){
   const records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
   const r = records.find(x=>x.id===id);
-  if(r) alert(r.summary);
+  if(!r) return;
+  document.getElementById('recordModalTitle').textContent = `病歷檢視 — ${r.name||'（未填姓名）'}`;
+  document.getElementById('recordModalMeta').textContent = `${r.visitDate||'無日期'}　·　${r.doctor}`;
+  document.getElementById('recordModalText').value = r.summary;
+  document.getElementById('recordModal').classList.add('open');
 }
+function closeRecordModal(){
+  document.getElementById('recordModal').classList.remove('open');
+}
+function copyRecordModalText(){
+  const text = document.getElementById('recordModalText').value;
+  navigator.clipboard.writeText(text).then(()=>{
+    alert('已複製這筆病歷文字');
+  }).catch(()=>{
+    alert('複製失敗，請手動選取文字');
+  });
+}
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape') closeRecordModal();
+});
 
 function deleteRecord(id){
   if(!confirm('確定刪除這筆病歷？')) return;
