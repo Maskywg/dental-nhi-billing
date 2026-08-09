@@ -123,7 +123,8 @@ main{max-width:1080px; margin:20px auto; padding:0 16px; display:flex; flex-dire
 .warn-banner.show{display:block;}
 
 /* --- 摘要 --- */
-#summaryBox{white-space:pre-wrap; font-family:ui-monospace,Menlo,monospace; font-size:13px; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:12px; min-height:80px;}
+#summaryBox{display:block; width:100%; white-space:pre-wrap; font-family:ui-monospace,Menlo,monospace; font-size:13px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:12px; min-height:80px; resize:vertical; line-height:1.6;}
+#summaryBox:focus{outline:2px solid var(--blue); outline-offset:1px;}
 .btn{padding:9px 16px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; font-size:13px;}
 .btn.primary{background:var(--blue); border-color:var(--blue); color:#fff; font-weight:600;}
 .btn.ghost{background:none;}
@@ -166,7 +167,14 @@ footer{text-align:center; color:var(--sub); font-size:12px; padding:20px;}
           <option>王崇丞醫師</option>
         </select>
       </div>
-      <div class="field"><label>傷病名稱＋代碼</label><input type="text" id="pDx" placeholder="例：K02.1 齲齒"></div>
+      <div class="field">
+        <label>傷病名稱＋代碼</label>
+        <select id="pDxSuggest" onchange="pickDx(this.value)" style="margin-bottom:6px;">
+          <option value="">－ 常用診斷碼（點選帶入，勾選處置項目後會自動帶最常用的一個）－</option>
+        </select>
+        <input type="text" id="pDx" placeholder="例：K02.1 齲齒">
+        <div class="small" style="margin-top:4px;">診斷碼清單為常見牙科 ICD-10-CM 參考用，非健保署官方逐筆比對，請依實際情況確認／修改。</div>
+      </div>
       <div class="field">
         <label>過敏史</label>
         <div class="allergy-toggle">
@@ -200,11 +208,11 @@ footer{text-align:center; color:var(--sub); font-size:12px; padding:20px;}
   <!-- 4. 摘要 -->
   <section class="card">
     <h2><span class="n">4</span>批價醫囑摘要</h2>
-    <div class="small" style="margin-bottom:8px;">下面每一筆都能直接編輯／刪除，不用回去上面找。</div>
+    <div class="small" style="margin-bottom:8px;">下面每一筆都能直接編輯／刪除，不用回去上面找。摘要文字框也能直接手動修改／刪除內容，按「重新產生摘要」才會用最新資料覆蓋回去。</div>
     <div id="summaryEditList" style="margin-bottom:16px;"></div>
-    <div id="summaryBox">尚無資料</div>
+    <textarea id="summaryBox" rows="14"></textarea>
     <div class="row-actions">
-      <button class="btn primary" onclick="refreshSummary()">重新產生摘要</button>
+      <button class="btn primary" onclick="regenerateSummaryText()">重新產生摘要</button>
       <button class="btn" onclick="copySummary()">複製摘要文字</button>
       <button class="btn" onclick="saveRecord()">💾 儲存本次病歷</button>
       <button class="btn ghost" onclick="resetForm()">清空重填</button>
@@ -326,6 +334,75 @@ function cloneStaging(def, entry){
 
 const RX_KEYWORD_ITEMS = new Set();
 ITEMS.forEach(g=>g.items.forEach(it=>{ if(it.rx) RX_KEYWORD_ITEMS.add(it.code); }));
+
+/* ---------------- 傷病名稱＋代碼：常用 ICD-10-CM 牙科診斷碼（僅供參考，非健保署逐筆官方比對）---------------- */
+const DX_OPTIONS = [
+  {code:'K02.9', name:'齲齒，未特定'},
+  {code:'K02.1', name:'齲齒侵犯牙本質'},
+  {code:'K02.3', name:'靜止性齲齒'},
+  {code:'K04.0', name:'牙髓炎'},
+  {code:'K04.1', name:'牙髓壞死'},
+  {code:'K04.5', name:'慢性根尖周炎（根尖肉芽腫）'},
+  {code:'K04.6', name:'有竇道之根尖周膿瘍'},
+  {code:'K04.7', name:'無竇道之根尖周膿瘍'},
+  {code:'K05.0', name:'急性牙齦炎'},
+  {code:'K05.1', name:'慢性牙齦炎'},
+  {code:'K05.2', name:'急性牙周炎'},
+  {code:'K05.3', name:'慢性牙周炎'},
+  {code:'K03.6', name:'牙齒表面沉積物（牙結石/牙菌斑）'},
+  {code:'K08.1', name:'因拔牙／牙周病等原因缺牙'},
+  {code:'K08.3', name:'殘留牙根'},
+  {code:'K01.1', name:'阻生齒'},
+  {code:'K03.0', name:'牙齒過度磨損'},
+  {code:'S02.5', name:'牙齒外傷性骨折'},
+];
+const DX_BY_CODE = {};
+DX_OPTIONS.forEach(d=>{ DX_BY_CODE[d.code] = d; });
+
+// 每個健保項目代碼 → 常用診斷碼優先順序（第一個為自動帶入用）
+const ITEM_DX_MAP = {
+  '01271':['K02.9'], '34001':['K02.9','K04.7'],
+  '89004':['K02.9','K02.1'], '89005':['K02.9','K02.1'], '89012':['K02.9','K02.1'],
+  '89014':['K02.9','K02.1'], '89008':['K02.9','K02.1'], '89009':['K02.9','K02.1'],
+  '89010':['K02.9','K02.1'], '89015':['K02.9','K02.1'], '89013':['K02.9','K02.1'], '89212':['K02.9','K02.1'],
+  '90004':['K04.0','K04.7'], '90015':['K04.0'],
+  '90001':['K04.5','K04.1'], '90002':['K04.5','K04.1'], '90003':['K04.5','K04.1'],
+  '90019':['K04.5','K04.1'], '90020':['K04.5','K04.1'],
+  '90016':['K04.0'], '90018':['K04.0'], '90094':['K04.5'], '90091':['K04.5'],
+  '90093':['K04.5'], '90092':['K04.5'], '90008':['K04.5'], '90007':['K04.5'], '90012':['K04.0'],
+  '91017':['K03.6'], '91090':['K03.6'], '91089':['K03.6'], '91005':['K03.6'], '91003':['K03.6'], '91004':['K03.6'],
+  '91008':['K05.3'], '91011':['K05.1'], '91013':['K05.1'], '92071':['K04.7'],
+  '92001':['K05.3'], '91001':['K05.2'], '91020':['K03.6'], '81':['K02.9'],
+  '92013':['K02.9','K08.3'], '92014':['K01.1','K02.9'], '92015':['K01.1'], '92016':['K01.1'],
+  '92027':['K01.1'], '92033H':['K04.5'], '92030':['K04.5'], '92031':['K04.5'], '92032':['K04.5'],
+  '92012':['K08.3'], '92005':['K02.9'], '92055':['K02.9'],
+  'P7302':['K02.9'],
+};
+
+function populateDxOptions(){
+  const el = document.getElementById('pDxSuggest');
+  DX_OPTIONS.forEach(d=>{
+    const opt = document.createElement('option');
+    opt.value = d.code;
+    opt.textContent = `${d.code} ${d.name}`;
+    el.appendChild(opt);
+  });
+}
+function pickDx(code){
+  if(!code) return;
+  const d = DX_BY_CODE[code];
+  if(!d) return;
+  document.getElementById('pDx').value = `${d.code} ${d.name}`;
+  document.getElementById('pDxSuggest').value = '';
+  refreshSummary();
+}
+function autoFillDx(itemCode, justChecked){
+  if(!justChecked) return;
+  if(val('pDx')) return; // 已有內容就不覆蓋
+  const list = ITEM_DX_MAP[itemCode];
+  if(!list || !list.length) return;
+  pickDx(list[0]);
+}
 
 /* ---------------- 姓名建議（沿用語音醫囑系統 dental-voice 的歷史姓名比對邏輯與資料源）---------------- */
 // 資料源：大原每日紀錄 Google 雲端硬碟，經 dental-voice 既有 Apps Script 彙整姓名清單
@@ -450,6 +527,7 @@ function toggleItem(code){
   }
   renderDetail(code);
   syncRxSuggestions();
+  autoFillDx(code, willCheck);
   refreshSummary();
 }
 
@@ -703,7 +781,9 @@ function syncRxSuggestions(){
 }
 
 /* ---------------- 摘要 ---------------- */
-function refreshSummary(){
+// summaryBox 現在是可直接手動編輯／刪除文字的 textarea，
+// 不會隨每次勾選自動覆寫內容，只有初次載入 / 按「重新產生摘要」/ 清空重填時才會重新產生。
+function buildFullSummaryText(){
   const lines = [];
   lines.push(`【患者】${val('pName')||'（未填）'}　出生：${val('pBirth')||'－'}　就醫：${val('pVisitDate')||'－'}`);
   lines.push(`【診治醫師】${val('pDoctor')}`);
@@ -738,7 +818,14 @@ function refreshSummary(){
     });
   }
 
-  document.getElementById('summaryBox').textContent = lines.join('\n');
+  return lines.join('\n');
+}
+
+function regenerateSummaryText(){
+  document.getElementById('summaryBox').value = buildFullSummaryText();
+}
+
+function refreshSummary(){
   renderSummaryEditList();
 }
 
@@ -846,7 +933,7 @@ function todayStr(){
 }
 
 function copySummary(){
-  const text = document.getElementById('summaryBox').textContent;
+  const text = document.getElementById('summaryBox').value;
   navigator.clipboard.writeText(text).then(()=>{
     alert('已複製摘要文字');
   }).catch(()=>{
@@ -894,7 +981,7 @@ async function saveRecord(){
     name: val('pName'),
     visitDate: val('pVisitDate'),
     doctor: val('pDoctor'),
-    summary: document.getElementById('summaryBox').textContent,
+    summary: document.getElementById('summaryBox').value,
   };
   records.unshift(record);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
@@ -957,14 +1044,17 @@ function resetForm(){
   renderRx();
   syncRxSuggestions();
   refreshSummary();
+  regenerateSummaryText();
 }
 
 /* ---------------- 初始化 ---------------- */
 document.getElementById('pVisitDate').value = todayStr();
+populateDxOptions();
 renderItemGroups();
 renderRx();
 syncRxSuggestions();
 refreshSummary();
+regenerateSummaryText();
 renderRecordList();
 loadServerNames();
 </script>
