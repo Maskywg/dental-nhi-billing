@@ -82,6 +82,15 @@ main{max-width:1080px; margin:20px auto; padding:0 16px; display:flex; flex-dire
 .item-detail{display:none; padding:10px; border-top:1px dashed var(--line); background:var(--panel);}
 .item-detail.open{display:block;}
 
+/* 群組內的細目選單（如高風險疾病複雜複合體充填） */
+.subgroup{margin-top:10px; border:1px solid var(--amber); border-radius:10px; background:var(--amber-bg); padding:2px 10px 10px;}
+.subgroup summary{cursor:pointer; padding:9px 0; font-size:12.5px; font-weight:700; color:var(--amber); list-style:none;}
+.subgroup summary::-webkit-details-marker{display:none;}
+.subgroup summary::before{content:'▸ '; }
+.subgroup[open] summary::before{content:'▾ '; }
+.subgroup-note{font-size:11.5px; color:var(--ink); background:var(--panel); border-radius:8px; padding:8px 10px; margin-bottom:8px; line-height:1.6;}
+.subgroup .item-row{background:var(--panel);}
+
 /* 牙位＋牙面 (樹脂) */
 .tooth-block{border:1px solid var(--line); border-radius:8px; padding:8px; margin-bottom:8px; background:var(--bg);}
 .tooth-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
@@ -248,8 +257,20 @@ const ITEMS = [
     {code:'89010', name:'三面後牙複合樹脂', type:'resin'},
     {code:'89015', name:'後牙鄰接面複合樹脂', type:'resin'},
     {code:'89013', name:'複合體充填（Compomer）', type:'resin'},
-    {code:'89212', name:'複雜複合體充填', type:'resin'},
-  ]},
+  ], subgroup:{
+    title:'複雜性複合體充填細目（113年度高風險疾病口腔照護計畫）',
+    note:'適用對象：須符合下列條件之一者 — (1)65歲以上者 (2)糖尿病病人 (3)心血管疾病病人 (4)血液透析及腹膜透析病人 (5)使用雙磷酸鹽類或抗骨鬆單株抗體藥物病人 (6)惡性腫瘤病人 (7)非屬「全民健康保險牙醫門診總額特殊醫療服務計畫」院所所適用之身心障礙類別及障礙等級者。（自113年3月1日起適用）',
+    items:[
+      {code:'89204', name:'複雜性前牙複合體充填－單面', type:'resin'},
+      {code:'89205', name:'複雜性前牙複合體充填－雙面', type:'resin'},
+      {code:'89212', name:'複雜性前牙複合體充填－三面', type:'resin'},
+      {code:'89214', name:'複雜性前牙雙鄰接面複合體充填', type:'resin'},
+      {code:'89208', name:'複雜性後牙複合體充填－單面', type:'resin'},
+      {code:'89209', name:'複雜性後牙複合體充填－雙面', type:'resin'},
+      {code:'89210', name:'複雜性後牙複合體充填－三面', type:'resin'},
+      {code:'89215', name:'複雜性後牙雙鄰接面複合體充填', type:'resin'},
+    ],
+  }},
   { group:'根管治療（需牙位＋長度＋擴大號數）', items:[
     {code:'90004', name:'齒內緊急處理', type:'toothlist'},
     {code:'90015', name:'髓腔開擴', rx:true, type:'toothlist'},
@@ -333,7 +354,7 @@ function cloneStaging(def, entry){
 }
 
 const RX_KEYWORD_ITEMS = new Set();
-ITEMS.forEach(g=>g.items.forEach(it=>{ if(it.rx) RX_KEYWORD_ITEMS.add(it.code); }));
+ITEMS.forEach(g=>(g.subgroup ? g.items.concat(g.subgroup.items) : g.items).forEach(it=>{ if(it.rx) RX_KEYWORD_ITEMS.add(it.code); }));
 
 /* ---------------- 傷病名稱＋代碼：常用 ICD-10-CM 牙科診斷碼（僅供參考，非健保署逐筆官方比對）---------------- */
 const DX_OPTIONS = [
@@ -478,37 +499,52 @@ function pickSuggestedName(fieldId, name){
 /* ---------------- 渲染：健保項目清單 ---------------- */
 const itemGroupsEl = document.getElementById('itemGroups');
 
+function buildItemRowHTML(it){
+  const badges = [];
+  if(it.rx) badges.push('<span class="badge rx">需開藥</span>');
+  if(it.type==='resin') badges.push(`<span class="badge surf">牙面 ${SURFACES.join('')}</span>`);
+  if(it.type==='canal') badges.push('<span class="badge canal">長度／號數</span>');
+  if(it.type==='toothlist') badges.push('<span class="badge canal">牙位（可複選）</span>');
+  return `
+    <div class="item-row">
+      <div class="item-head" onclick="toggleItem('${it.code}')">
+        <input type="checkbox" id="chk-${it.code}" onclick="event.stopPropagation(); toggleItem('${it.code}')">
+        <span class="code">${it.code}</span>
+        <span class="name">${it.name}</span>
+        <span class="badges">${badges.join('')}</span>
+      </div>
+      <div class="item-detail" id="detail-${it.code}"></div>
+    </div>
+  `;
+}
+
 function renderItemGroups(){
   itemGroupsEl.innerHTML = '';
   ITEMS.forEach(group=>{
     const g = document.createElement('div');
     g.className = 'group';
-    g.innerHTML = `<h3>${group.group}</h3>`;
-    group.items.forEach(it=>{
-      const row = document.createElement('div');
-      row.className = 'item-row';
-      const badges = [];
-      if(it.rx) badges.push('<span class="badge rx">需開藥</span>');
-      if(it.type==='resin') badges.push(`<span class="badge surf">牙面 ${SURFACES.join('')}</span>`);
-      if(it.type==='canal') badges.push('<span class="badge canal">長度／號數</span>');
-      if(it.type==='toothlist') badges.push('<span class="badge canal">牙位（可複選）</span>');
-      row.innerHTML = `
-        <div class="item-head" onclick="toggleItem('${it.code}')">
-          <input type="checkbox" id="chk-${it.code}" onclick="event.stopPropagation(); toggleItem('${it.code}')">
-          <span class="code">${it.code}</span>
-          <span class="name">${it.name}</span>
-          <span class="badges">${badges.join('')}</span>
-        </div>
-        <div class="item-detail" id="detail-${it.code}"></div>
+    let html = `<h3>${group.group}</h3>`;
+    group.items.forEach(it=>{ html += buildItemRowHTML(it); });
+    if(group.subgroup){
+      html += `
+        <details class="subgroup">
+          <summary>${group.subgroup.title}</summary>
+          <div class="subgroup-note">${group.subgroup.note}</div>
+          ${group.subgroup.items.map(buildItemRowHTML).join('')}
+        </details>
       `;
-      g.appendChild(row);
-    });
+    }
+    g.innerHTML = html;
     itemGroupsEl.appendChild(g);
   });
 }
 
+function allGroupItems(group){
+  return group.subgroup ? group.items.concat(group.subgroup.items) : group.items;
+}
+
 function getItemDef(code){
-  for(const g of ITEMS) for(const it of g.items) if(it.code===code) return it;
+  for(const g of ITEMS) for(const it of allGroupItems(g)) if(it.code===code) return it;
 }
 
 function toggleItem(code){
@@ -794,7 +830,7 @@ function buildFullSummaryText(){
 
   let any = false;
   ITEMS.forEach(group=>{
-    group.items.forEach(it=>{
+    allGroupItems(group).forEach(it=>{
       const sel = state.selected[it.code];
       if(!sel || !sel.checked) return;
       any = true;
@@ -836,7 +872,7 @@ function renderSummaryEditList(){
 
   const itemBlocks = [];
   ITEMS.forEach(group=>{
-    group.items.forEach(it=>{
+    allGroupItems(group).forEach(it=>{
       const sel = state.selected[it.code];
       if(!sel || !sel.checked) return;
 
@@ -906,7 +942,7 @@ function buildItemsText(){
   const lines = [];
   let any = false;
   ITEMS.forEach(group=>{
-    group.items.forEach(it=>{
+    allGroupItems(group).forEach(it=>{
       const sel = state.selected[it.code];
       if(!sel || !sel.checked) return;
       any = true;
